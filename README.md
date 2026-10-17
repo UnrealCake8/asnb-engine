@@ -1,6 +1,6 @@
-# ASNB Engine — creator MVP
+# ASNB Studio
 
-A browser-based 3D world builder using Three.js and server-side OpenAI generation. Describe a world, edit objects, playtest, and export portable JSON projects.
+A browser game editor and multiplayer player built with Three.js, cannon-es, Node, Supabase and OpenAI.
 
 ## Run
 
@@ -8,72 +8,55 @@ Node 22.12+ recommended.
 
 ```sh
 npm install
-# Set OPENAI_API_KEY in an ignored .env.local file
-npm run dev
+npm run build
+NODE_ENV=production PORT=4000 npm start
 ```
 
-Open http://localhost:3000. Without a key the editor, starter game, JSON import/export, and JavaScript playtests still work; AI generation reports its configuration error.
+For development: `PORT=4000 npm run dev`. Open http://localhost:4000. `.env.local` is ignored by Git. AI requires `OPENAI_API_KEY`; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. A remote AI endpoint also requires `ASNB_ACCESS_TOKEN` (enter it in Assistant → Server access). No key is included in this repository.
+
+Keep the Node process running. A static `dist` upload alone cannot run AI or authoritative multiplayer. HTTPS reverse proxies/tunnels must forward WebSocket upgrades on `/session` to the **same Node port** as the website. All active rooms currently live in that one Node process; don't round-robin players across independent replicas.
+
+## Create, publish and play
+
+- Select, move, rotate, scale, group, duplicate and delete objects. Explorer and Properties operate on the same scene. Undo/redo covers scene edits.
+- Assistant supports Auto, Replace and Edit. Replacement receives no starter geometry. Edits keep the current scene and selected context. Unsupported assets are never fabricated.
+- Templates include Physics Playground, Sky Sprint and Citadel Treasure Crew. Their gameplay supports cooperative collecting, races and interactive physics props.
+- Sign in to publish an immutable snapshot. `/games` lists separate published games. Every `/play/<slug>?room=<name>` has its **own** players, physics, interactions, collectibles and scores. Use Room → New room, or share the current URL to join friends. Rooms are public to anyone with the link, not access-controlled invite rooms.
+- Third-person is the default. Use **C** or the camera selector for first-person, third-person and top-down views. WASD/arrows move, Space jumps, E interacts. Touch movement and interaction buttons are included.
+
+## Authoritative multiplayer
+
+The Node server loads published projects from Supabase using a publishable key, then runs cannon-es at 60Hz and sends snapshots at 20Hz. Clients send inputs and interaction requests, not accepted positions, scores or object state. The server assigns guest session ids, bounds inputs, validates proximity/cooldowns, computes collisions, and resolves shared collectibles once. New arrivals receive the current room state. Disconnects clean up player bodies; empty rooms expire after ten minutes. Restarting the server resets rooms.
+
+Rooms are capped at 20 players. The process has room/connection caps, payload limits, message-rate limits and heartbeats; these are resource guards, not a tested capacity promise. Player interpolation is included; client prediction/reconciliation, lag compensation, identity-bound competitive profiles and horizontal room scheduling remain future work.
+
+Local playtests use the same physics simulation in the browser. Local playtests don't join published rooms. Movement is authoritative in published sessions; scripts cannot set authoritative transforms. Local scripts may still change presentation. Door movement, visibility, light state and audio play/pause are shared through validated interaction components. Audio play/pause is shared, not sample-accurate timeline synchronization; browser user-gesture rules still apply.
+
+## Models and scene hierarchy
+
+Use **Import GLB** to upload a self-contained glTF 2.0 binary file (sign-in required, max 20MB). Embedded geometry/materials/textures are supported by GLTFLoader; externally referenced resources are rejected. Models needing Draco, KTX2 or other unconfigured decoders may fail. Imported models are rendered as one editor asset; internal nodes retain their render hierarchy but aren't individually editable in Explorer. Uploaded files are public assets.
+
+Objects can have `parentId`, with **local** position/rotation/size relative to their parent. Group makes a root container; Parent in Properties reparents while preserving world pose. Nesting is limited to 16 levels, cycles and missing references are rejected. Deleting a container deletes its descendants. Duplicate preserves internal references.
+
+Solid primitive boxes, spheres and cylinders have physics colliders. Imported solid models use box proxies; arbitrary triangle-mesh collision, rigged character animation, vehicles and joints are not implemented. Dynamic mass is configurable in Properties. Dynamic objects cannot be parents of child scene objects; use one rigid model or static groups.
+
+## Audio and scripts
+
+Properties supports MP3 upload (10MB), HTTPS audio URLs, volume, looping, spatial attenuation and interaction targets. Audio and model uploads use creator-owned Storage paths with immutable uploads. Assets are publicly readable by URL. Per-user storage quotas, cleanup tools, private asset sharing and general texture/animation asset management remain future work.
+
+Script saves project JavaScript and runs it in a dedicated worker inside an opaque sandbox iframe. Allowed API: `color(id,hex)`, `position(id,x,y,z)`, `visible(id,bool)`, `audio(id)`, `onUpdate(fn)` and `onInteract(id,fn)`. Commands are bounded and a heartbeat watchdog terminates stalled workers. Public sessions ignore script position/visibility commands to preserve the server simulation. Creator scripts never execute in the Node process or authorize transactions. Authoritative server scripting isn't implemented.
+
+## Supabase configuration
+
+Public defaults point to `asnb.engine`. Override browser settings with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` at build time; override Node reads with `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Never put secret/service-role keys in the frontend.
+
+`supabase/schema.sql` records the game table and ownership policies. `supabase/realtime-assets.sql` records Storage policies and the earlier Supabase Realtime co-presence policies; authoritative game simulation now uses Node WebSockets, while Supabase remains responsible for Auth, publishing and asset storage. Old version 1 JSON projects remain compatible.
+
+## Verification
 
 ```sh
 npm test
 npm run build
-NODE_ENV=production npm start
 ```
 
-Keep the Node server: serving `dist` alone does not provide `/api/generate`. No deployment is provisioned by this repository.
-
-## MVP features
-
-- AI creates or updates a structured, validated scene through the Responses API. Default model `gpt-4.1-mini`, configurable with `OPENAI_MODEL`.
-- First-person playtesting with mouse look, WASD/arrows, jumping, box collisions, checkpoints, collectibles, hazards, and finish triggers.
-- Touch movement buttons; editor orbit camera, picking, property editing, add/delete.
-- Automatic browser save, JSON editing, import/export, and an included floating-island game.
-- Custom JavaScript playtests in a worker inside an opaque sandbox iframe. Only validated position/color messages affect the scene. Network access is blocked by CSP; workers are terminated if they stop responding for two seconds. Project scripts are saved in exports and run in isolated workers with a heartbeat watchdog.
-
-## Scope
-
-This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No vehicle simulation, model uploads, authoritative multiplayer simulation, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision uses world-axis bounding boxes; curves and sloped surfaces are approximations. The first-person controller is deliberately simple.
-
-For remote AI use, set a strong `ASNB_ACCESS_TOKEN`, bind `HOST` deliberately, and use HTTPS. The editor accepts that token per session. AI access is denied for non-local hostnames without a configured token. A process-wide generation lock bounds concurrency; add durable per-user quotas and authentication before a public launch. Never expose the API key in frontend code.
-
-## Project format
-
-See `src/project.js` for the strict generation schema and runtime validator. Units are arbitrary; Y is up. Spawn is the player's feet position. Each object has an id, name, shape, position, size, hex color, and behaviour. Version 1 accepts up to 200 objects.
-
-## Verification
-
-`npm test` checks project round-tripping and rejects malformed/unsafe data. `npm run build` bundles the browser client. Live API testing requires an account with available quota. Browser playtesting should cover collision, jump reach, pointer lock, touch, triggers, and custom scripts before release.
-
-## Supabase publishing
-
-Connected to the `asnb.engine` project. Public Supabase configuration is in `src/publishing.js` and can be overridden with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` at build time. These are publishable settings, never a service-role credential.
-
-Create an email/password account, confirm your email if prompted, sign in, then press Publish. Each publication creates an immutable public snapshot with a collision-resistant name-based slug, for example `/play/desert-adventure-a1b2c3d4`. My games lists your publications and lets you remove them. Republish to create a fresh link after editing. Saved custom JavaScript is included in published project snapshots.
-
-The Node production server serves deep play links. Other hosts must rewrite `/play/*` to `index.html`. Share links become publicly reachable once the application itself is deployed. Public players do not overwrite the creator's browser draft.
-
-`supabase/schema.sql` records the applied schema. RLS permits public reads of published games and restricts insertion/deletion to the authenticated owner; clients cannot overwrite snapshots. The database restricts project payloads to 300KB. Email/password auth uses the project's existing Supabase Auth configuration.
-
-## Studio editor (0.2)
-
-The interface now uses a compact Studio-style workspace: transform toolbar, collapsible AI assistant, scene Explorer and Properties. Click an object in the viewport or Explorer; Shift/Ctrl/Cmd-click selects multiple objects. Move/rotate/scale handles apply to the selection. Q selects, W moves, E rotates, R scales, F frames the selection. Ctrl/Cmd A selects all objects, Ctrl/Cmd D duplicates, Delete removes, Ctrl/Cmd Z undoes and Ctrl/Cmd Shift Z redoes. Snap uses 1-unit movement, 15-degree rotation and 0.25-unit scaling.
-
-Workspace properties edit the project name, sky colour and player spawn. Lighting properties edit sun and ambient intensity. Spawn is selectable and movable. Objects expose position, rotation in degrees, size, colour, shape and gameplay behaviour. Old version 1 project files remain supported; missing rotation defaults to zero.
-
-AI mode defaults to Auto: a first structured request classifies the instruction as a new world or an edit. Replacement generation receives no previous geometry; edits receive the current scene and selected object ids. Creators can explicitly choose Replace world or Edit world. Builds, imports and starter resets are undoable. If the scene changes while AI is generating, the stale result is rejected.
-
-Play mode uses world-axis bounding-box collisions for all solid shapes, including rotated objects; sloped surfaces are approximations, not true ramp physics. Saved custom script effects remain client-local, including in multiplayer. The transform UI has build and data tests but still needs browser interaction QA on the target device.
-
-## Multiplayer, interactions, audio and scripts (0.3)
-
-Published play links join a private Supabase Realtime channel scoped by game slug and room. Anyone who can play a public game can join its channel. Presence tracks guests, Broadcast sends movement at 10Hz, and remote capsule avatars interpolate between updates. `?room=friends` creates a separate room; share the full URL to join the same one. Maximum 30 remote avatars rendered per client. Rooms are ephemeral, guest labels are not verified identities, and movement remains client-reported. No authoritative collision, anti-cheat, shared inventory, economy, global collectible state, or shared scripted world state is provided. Local playtests do not join public rooms.
-
-Select an object and use Properties → Audio to paste an HTTPS audio URL or upload an MP3 (sign-in required, maximum 10MB). Uploaded recordings are public assets; the UI asks before upload. Playback supports volume, looping, positional audio, and distance attenuation. Approach an interactive object and press E or tap the onscreen prompt. Audio begins in response to interaction, not autoplay. Stop resets local runtime effects.
-
-Interaction components connect a source object to a target with `toggleAudio`, `toggleVisibility`, `toggleLight`, or `move`. Move uses an offset and toggles back to its original position. Point lights can be attached in Properties; they are currently rendered during playtests. Interactions and scripts are local to each player's session, not broadcast world mutations.
-
-Scripts entered under Script are saved in the project and start on Play, including published games. The isolated worker API provides `api.color(id,hex)`, `api.position(id,x,y,z)`, `api.visible(id,bool)`, `api.audio(id)`, `api.onUpdate(fn)` (dt argument), and `api.onInteract(id,fn)`. No direct DOM, networking, or engine-object access. The sandbox limits forwarded commands and stops stalled workers after two seconds. Scripts are not executed on the Node server. Creator scripts must never be used to authorize transactions.
-
-`supabase/realtime-assets.sql` records the applied room policies and audio bucket setup. Creator asset folders restrict upload access to the signed-in owner. Audio uploads are immutable through this UI. Asset cleanup, per-user storage quotas, and private asset sharing are future work.
-
-Verification includes two live private-channel clients exchanging movement, Presence joins/leaves, data/component validation, and interaction distance/door toggling. Browser audio playback, visual multiplayer interpolation and script event handling still require device QA.
+Tests cover physics, input bounds, duplicate collectible prevention, interaction distance, late-join world state, game/room isolation over real WebSockets, hierarchy validation, project round-tripping and actual GLTF parsing. Live smoke checks also exercise Supabase project loading into the real game server. Browser camera feel, audio playback, asset uploads and visual transform workflows still require device QA; no browser performance/load-test claim is made.

@@ -16,3 +16,10 @@ values ('asnb-audio','asnb-audio',true,10485760,array['audio/mpeg','audio/mp3'])
 create policy "asnb audio upload own folder" on storage.objects for insert to authenticated with check (
  bucket_id='asnb-audio' and (storage.foldername(name))[1]=(select auth.uid())::text
 );
+
+-- Self-contained GLB model uploads (public assets, creator-owned paths).
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values ('asnb-models','asnb-models',true,20971520,array['model/gltf-binary']);
+create policy "asnb model upload own folder" on storage.objects for insert to authenticated with check (
+ bucket_id='asnb-models' and (storage.foldername(name))[1]=(select auth.uid())::text
+);

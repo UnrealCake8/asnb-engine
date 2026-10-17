@@ -1,3 +1,6 @@
+import {createServer as createHttpServer} from 'node:http';
+import {createClient} from '@supabase/supabase-js';
+import {installSessions} from './server/sessions.js';
 import path from 'node:path';
 import express from 'express';
 import OpenAI from 'openai';
@@ -11,6 +14,8 @@ app.post('/api/generate',localOnly,async(req,res)=>{if(busy)return res.status(42
 if(mode==='auto'){const intent=await client.responses.create({model:process.env.OPENAI_MODEL||'gpt-4.1-mini',store:false,instructions:intentInstructions,input:req.body.prompt,text:{format:{type:'json_schema',name:'generation_intent',strict:true,schema:intentSchema}}});mode=JSON.parse(intent.output_text).mode;}
 const context=generationContext(mode,current,Array.isArray(req.body.selectedIds)?req.body.selectedIds.filter(x=>typeof x==='string'):[]);
 const response=await client.responses.create({model:process.env.OPENAI_MODEL||'gpt-4.1-mini',store:false,instructions:generationInstructions,input:JSON.stringify({request:req.body.prompt,...context}),text:{format:{type:'json_schema',name:'asnb_project',strict:true,schema}}});if(!response.output_text)throw Error('AI returned no project.');const generated=JSON.parse(response.output_text);if(mode==='edit'&&current?.script)generated.script=current.script;res.json({mode,project:validateProject(generated)});}catch(e){console.error('Generation failed:',e.status||e.name);res.status(502).json({error:e.status===429?'OpenAI quota or rate limit reached. Check API billing.':'Generation failed. Please retry or check the server configuration.'});}finally{busy=false;}});
-if(process.env.NODE_ENV==='production'){app.use(express.static('dist'));app.get(['/','/play/:slug'],(_,res)=>res.sendFile(path.resolve('dist/index.html')));}else{const {createServer}=await import('vite');const vite=await createServer({server:{middlewareMode:true},appType:'spa'});app.use(vite.middlewares);}
+if(process.env.NODE_ENV==='production'){app.use(express.static('dist'));app.get(['/','/games','/play/:slug'],(_,res)=>res.sendFile(path.resolve('dist/index.html')));}else{const {createServer}=await import('vite');const vite=await createServer({server:{middlewareMode:true},appType:'spa'});app.use(vite.middlewares);}
 app.use((err,req,res,next)=>res.status(400).json({error:'Invalid request body.'}));
-app.listen(Number(process.env.PORT)||3000,process.env.HOST||'127.0.0.1',()=>console.log('ASNB Engine ready on port '+(process.env.PORT||3000)));
+const publicDb=createClient(process.env.SUPABASE_URL||'https://zwwvlkokiwkyzyuzucxe.supabase.co',process.env.SUPABASE_PUBLISHABLE_KEY||'sb_publishable_neCy4gSkn6gVGjMXtYgDLw_wZ24gZJE',{auth:{persistSession:false}});
+async function loadGame(slug){const {data,error}=await publicDb.from('asnb_games').select('project').eq('slug',slug).eq('published',true).single().abortSignal(AbortSignal.timeout(20000));if(error||!data)throw Error('Game not found');return data.project;}
+const httpServer=createHttpServer(app);installSessions(httpServer,{loadGame});httpServer.listen(Number(process.env.PORT)||3000,process.env.HOST||'127.0.0.1',()=>console.log('ASNB Engine ready on port '+(process.env.PORT||3000)));
