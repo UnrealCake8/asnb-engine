@@ -32,7 +32,7 @@ Keep the Node server: serving `dist` alone does not provide `/api/generate`. No 
 
 ## Scope
 
-This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No multiplayer, vehicle simulation, accounts, asset uploads, publishing service, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision is axis-aligned boxes only; spheres and cylinders are visuals/triggers. The first-person controller is deliberately simple.
+This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No multiplayer, vehicle simulation, asset uploads, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision is axis-aligned boxes only; spheres and cylinders are visuals/triggers. The first-person controller is deliberately simple.
 
 For remote AI use, set a strong `ASNB_ACCESS_TOKEN`, bind `HOST` deliberately, and use HTTPS. The editor accepts that token per session. AI access is denied for non-local hostnames without a configured token. A process-wide generation lock bounds concurrency; add durable per-user quotas and authentication before a public launch. Never expose the API key in frontend code.
 
@@ -43,3 +43,13 @@ See `src/project.js` for the strict generation schema and runtime validator. Uni
 ## Verification
 
 `npm test` checks project round-tripping and rejects malformed/unsafe data. `npm run build` bundles the browser client. Live API testing requires an account with available quota. Browser playtesting should cover collision, jump reach, pointer lock, touch, triggers, and custom scripts before release.
+
+## Supabase publishing
+
+Connected to the `asnb.engine` project. Public Supabase configuration is in `src/publishing.js` and can be overridden with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` at build time. These are publishable settings, never a service-role credential.
+
+Create an email/password account, confirm your email if prompted, sign in, then press Publish. Each publication creates an immutable public snapshot with a collision-resistant name-based slug, for example `/play/desert-adventure-a1b2c3d4`. My games lists your publications and lets you remove them. Republish to create a fresh link after editing. Custom JavaScript playtests are not published.
+
+The Node production server serves deep play links. Other hosts must rewrite `/play/*` to `index.html`. Share links become publicly reachable once the application itself is deployed. Public players do not overwrite the creator's browser draft.
+
+`supabase/schema.sql` records the applied schema. RLS permits public reads of published games and restricts insertion/deletion to the authenticated owner; clients cannot overwrite snapshots. The database restricts project payloads to 300KB. Email/password auth uses the project's existing Supabase Auth configuration.
