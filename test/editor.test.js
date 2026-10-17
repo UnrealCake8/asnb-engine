@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createHistory} from '../src/history.js';
+import {generationContext} from '../src/generation.js';
+import {starter,validateProject} from '../src/project.js';
+test('undo restores complete pre-generation world; redo restores replacement',()=>{const p=starter(),h=createHistory(p);const replacement={...p,name:'Desert',objects:[p.objects[0]]};h.push(replacement);assert.deepEqual(h.undo(),p);assert.deepEqual(h.redo(),replacement);h.undo();h.push({...p,name:'Different edit'});assert.equal(h.canRedo,false);});
+test('history snapshots are isolated from subsequent object mutations',()=>{const p=starter(),h=createHistory(p);p.objects[0].position[0]=100;h.push(p);assert.equal(h.undo().objects[0].position[0],0);});
+test('new-world generation never receives starter geometry or selected references',()=>{const p=starter();assert.deepEqual(generationContext('replace',p,['island']),{mode:'replace',currentProject:null,selectedObjectIds:[]});});
+test('edit generation keeps project and only valid selected object ids',()=>{const p=starter(),context=generationContext('edit',p,['island','not-an-object']);assert.equal(context.currentProject,p);assert.deepEqual(context.selectedObjectIds,['island']);});
+test('rotation and lighting survive export and reject invalid numeric data',()=>{const p=starter();p.objects[0].rotation=[0,45,0];p.lighting={intensity:2,ambient:1};assert.deepEqual(validateProject(p),p);p.objects[0].rotation=[Infinity,0,0];assert.throws(()=>validateProject(p));p.objects[0].rotation=[0,0,0];p.lighting.intensity=-1;assert.throws(()=>validateProject(p));});

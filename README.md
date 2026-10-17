@@ -32,7 +32,7 @@ Keep the Node server: serving `dist` alone does not provide `/api/generate`. No 
 
 ## Scope
 
-This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No multiplayer, vehicle simulation, asset uploads, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision is axis-aligned boxes only; spheres and cylinders are visuals/triggers. The first-person controller is deliberately simple.
+This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No multiplayer, vehicle simulation, asset uploads, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision uses world-axis bounding boxes; curves and sloped surfaces are approximations. The first-person controller is deliberately simple.
 
 For remote AI use, set a strong `ASNB_ACCESS_TOKEN`, bind `HOST` deliberately, and use HTTPS. The editor accepts that token per session. AI access is denied for non-local hostnames without a configured token. A process-wide generation lock bounds concurrency; add durable per-user quotas and authentication before a public launch. Never expose the API key in frontend code.
 
@@ -53,3 +53,13 @@ Create an email/password account, confirm your email if prompted, sign in, then 
 The Node production server serves deep play links. Other hosts must rewrite `/play/*` to `index.html`. Share links become publicly reachable once the application itself is deployed. Public players do not overwrite the creator's browser draft.
 
 `supabase/schema.sql` records the applied schema. RLS permits public reads of published games and restricts insertion/deletion to the authenticated owner; clients cannot overwrite snapshots. The database restricts project payloads to 300KB. Email/password auth uses the project's existing Supabase Auth configuration.
+
+## Studio editor (0.2)
+
+The interface now uses a compact Studio-style workspace: transform toolbar, collapsible AI assistant, scene Explorer and Properties. Click an object in the viewport or Explorer; Shift/Ctrl/Cmd-click selects multiple objects. Move/rotate/scale handles apply to the selection. Q selects, W moves, E rotates, R scales, F frames the selection. Ctrl/Cmd A selects all objects, Ctrl/Cmd D duplicates, Delete removes, Ctrl/Cmd Z undoes and Ctrl/Cmd Shift Z redoes. Snap uses 1-unit movement, 15-degree rotation and 0.25-unit scaling.
+
+Workspace properties edit the project name, sky colour and player spawn. Lighting properties edit sun and ambient intensity. Spawn is selectable and movable. Objects expose position, rotation in degrees, size, colour, shape and gameplay behaviour. Old version 1 project files remain supported; missing rotation defaults to zero.
+
+AI mode defaults to Auto: a first structured request classifies the instruction as a new world or an edit. Replacement generation receives no previous geometry; edits receive the current scene and selected object ids. Creators can explicitly choose Replace world or Edit world. Builds, imports and starter resets are undoable. If the scene changes while AI is generating, the stale result is rejected.
+
+Play mode uses world-axis bounding-box collisions for all solid shapes, including rotated objects; sloped surfaces are approximations, not true ramp physics. Custom script edits remain playtest-only. The transform UI has build and data tests but still needs browser interaction QA on the target device.
