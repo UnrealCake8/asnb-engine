@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {starter,validateProject} from '../src/project.js';
+test('starter round-trips without dropping mechanics',()=>{const p=starter();assert.deepEqual(validateProject(JSON.parse(JSON.stringify(p))),p);assert(p.objects.some(o=>o.behavior==='finish'));});
+test('rejects malformed geometry and duplicate references',()=>{for(const change of [p=>p.objects[0].size=[-1,2,3],p=>p.objects[1].id=p.objects[0].id,p=>p.spawn=[NaN,0,0],p=>p.sky='url(https://evil)',p=>p.objects[0].behavior='execute']){const p=starter();change(p);assert.throws(()=>validateProject(p));}});
+test('discards executable and unknown fields on import',()=>{const p=starter();p.script='evil';p.objects[0].onclick='evil';const safe=validateProject(p);assert.equal(safe.script,undefined);assert.equal(safe.objects[0].onclick,undefined);});
