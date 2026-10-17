@@ -7,7 +7,7 @@ export function validateProject(p){
  const color=v=>typeof v==='string'&&/^#[0-9a-f]{6}$/i.test(v);
  if(!vector(p.spawn)||!color(p.sky)||!Array.isArray(p.objects)||p.objects.length>200)throw Error('Invalid spawn, sky, or object count (maximum 200).');
  if(p.script!==undefined&&(typeof p.script!=='string'||p.script.length>30000))throw Error('Script must be under 30,000 characters.');
- if(p.cameraMode!==undefined&&!['first','third','top'].includes(p.cameraMode))throw Error('Invalid camera mode.');if(p.gameMode!==undefined&&!['freeplay','collectathon','race'].includes(p.gameMode))throw Error('Invalid game mode.');
+ if(p.cameraMode!==undefined&&!['first','third','top'].includes(p.cameraMode))throw Error('Invalid camera mode.');if(p.gameMode!==undefined&&!['freeplay','collectathon','race','shooter'].includes(p.gameMode))throw Error('Invalid game mode.');
  checkHierarchy(p.objects);
  const ids=new Set();for(const o of p.objects){if(!o||typeof o.id!=='string'||!o.id||o.id.length>100||ids.has(o.id)||typeof o.name!=='string'||o.name.length>100||!['box','sphere','cylinder','group','model'].includes(o.shape)||!vector(o.position)||!vector(o.size,.1,2000)||!color(o.color)||(o.rotation!==undefined&&!vector(o.rotation,-36000,36000))||!['solid','collectible','hazard','checkpoint','finish','decoration'].includes(o.behavior))throw Error('Invalid object: '+(o?.name||'unnamed'));validateComponents(o);if(o.modelUrl!=null){let u;try{u=new URL(o.modelUrl);}catch{throw Error('Invalid model URL');}if(u.protocol!=='https:'||u.username||u.password||o.modelUrl.length>2000)throw Error('Models require an HTTPS URL.');}if(o.physics&&(typeof o.physics.dynamic!=='boolean'||!Number.isFinite(o.physics.mass)||o.physics.mass<.1||o.physics.mass>100))throw Error('Invalid physics settings.');ids.add(o.id);}
  worldTransforms(p.objects);for(const o of p.objects)if(o.physics?.dynamic&&p.objects.some(child=>child.parentId===o.id))throw Error('Dynamic bodies cannot be parents. Group static parts or use one rigid model.');
@@ -20,7 +20,7 @@ function validateLighting(l){if(!l||!Number.isFinite(l.intensity)||l.intensity<0
 // Generation uses the extended format; older projects keep optional fields omitted.
 schema.required.push('cameraMode','gameMode');
 schema.properties.cameraMode={type:'string',enum:['first','third','top']};
-schema.properties.gameMode={type:'string',enum:['freeplay','collectathon','race']};
+schema.properties.gameMode={type:'string',enum:['freeplay','collectathon','race','shooter']};
 const objectSchema=schema.properties.objects.items;
 objectSchema.properties.shape.enum.push('group','model');
 objectSchema.required.push('parentId','modelUrl','physics');

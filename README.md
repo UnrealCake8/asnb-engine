@@ -60,3 +60,10 @@ npm run build
 ```
 
 Tests cover physics, input bounds, duplicate collectible prevention, interaction distance, late-join world state, game/room isolation over real WebSockets, hierarchy validation, project round-tripping and actual GLTF parsing. Live smoke checks also exercise Supabase project loading into the real game server. Browser camera feel, audio playback, asset uploads and visual transform workflows still require device QA; no browser performance/load-test claim is made.
+
+### Chat and laser tag
+Published rooms now relay chat only to currently connected room members. The server does not keep a transcript, persist messages, or replay chat to late joiners. Each tab caches its last 100 messages in sessionStorage (survives refresh; normally cleared when the tab session ends). Clear cache removes that tab's copy. Delivery is best effort: disconnected players miss messages. This is not end-to-end encrypted and clearing one copy does not erase recipients' copies.
+
+Players have articulated arms and legs with procedural walking animation. Select **Templates → Neon laser tag** for a shooter: mouse aim, click/F/FIRE to shoot, C to change camera. Health, fire cooldown, cover raycasts, tags, respawns and practice-target resets run in the authoritative simulation. Four hits tag a player; respawns have two seconds of protection. Practice targets reset after three seconds. Shooter is an initial free-for-all sandbox, with no round timer, teams, reload system or lag compensation yet. Top-down aiming is not enabled.
+
+Validation: automated WebSocket room chat isolation/identity/no snapshot history, raycast cover/fire cadence/health/respawn, template/practice-target and avatar articulation tests. Visual gameplay and mobile QA remain pending.
