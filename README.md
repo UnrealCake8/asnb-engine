@@ -28,11 +28,11 @@ Keep the Node server: serving `dist` alone does not provide `/api/generate`. No 
 - First-person playtesting with mouse look, WASD/arrows, jumping, box collisions, checkpoints, collectibles, hazards, and finish triggers.
 - Touch movement buttons; editor orbit camera, picking, property editing, add/delete.
 - Automatic browser save, JSON editing, import/export, and an included floating-island game.
-- Custom JavaScript playtests in a worker inside an opaque sandbox iframe. Only validated position/color messages affect the scene. Network access is blocked by CSP; workers stop after two seconds. Scripts are temporary and are not included in exports.
+- Custom JavaScript playtests in a worker inside an opaque sandbox iframe. Only validated position/color messages affect the scene. Network access is blocked by CSP; workers are terminated if they stop responding for two seconds. Project scripts are saved in exports and run in isolated workers with a heartbeat watchdog.
 
 ## Scope
 
-This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No multiplayer, vehicle simulation, asset uploads, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision uses world-axis bounding boxes; curves and sloped surfaces are approximations. The first-person controller is deliberately simple.
+This is a single-player prototype, not yet a general-purpose engine or Roblox-compatible runtime. No vehicle simulation, model uploads, authoritative multiplayer simulation, or RBXLX importer. AI produces supported scene data rather than arbitrary gameplay scripts. Collision uses world-axis bounding boxes; curves and sloped surfaces are approximations. The first-person controller is deliberately simple.
 
 For remote AI use, set a strong `ASNB_ACCESS_TOKEN`, bind `HOST` deliberately, and use HTTPS. The editor accepts that token per session. AI access is denied for non-local hostnames without a configured token. A process-wide generation lock bounds concurrency; add durable per-user quotas and authentication before a public launch. Never expose the API key in frontend code.
 
@@ -48,7 +48,7 @@ See `src/project.js` for the strict generation schema and runtime validator. Uni
 
 Connected to the `asnb.engine` project. Public Supabase configuration is in `src/publishing.js` and can be overridden with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` at build time. These are publishable settings, never a service-role credential.
 
-Create an email/password account, confirm your email if prompted, sign in, then press Publish. Each publication creates an immutable public snapshot with a collision-resistant name-based slug, for example `/play/desert-adventure-a1b2c3d4`. My games lists your publications and lets you remove them. Republish to create a fresh link after editing. Custom JavaScript playtests are not published.
+Create an email/password account, confirm your email if prompted, sign in, then press Publish. Each publication creates an immutable public snapshot with a collision-resistant name-based slug, for example `/play/desert-adventure-a1b2c3d4`. My games lists your publications and lets you remove them. Republish to create a fresh link after editing. Saved custom JavaScript is included in published project snapshots.
 
 The Node production server serves deep play links. Other hosts must rewrite `/play/*` to `index.html`. Share links become publicly reachable once the application itself is deployed. Public players do not overwrite the creator's browser draft.
 
@@ -62,4 +62,18 @@ Workspace properties edit the project name, sky colour and player spawn. Lightin
 
 AI mode defaults to Auto: a first structured request classifies the instruction as a new world or an edit. Replacement generation receives no previous geometry; edits receive the current scene and selected object ids. Creators can explicitly choose Replace world or Edit world. Builds, imports and starter resets are undoable. If the scene changes while AI is generating, the stale result is rejected.
 
-Play mode uses world-axis bounding-box collisions for all solid shapes, including rotated objects; sloped surfaces are approximations, not true ramp physics. Custom script edits remain playtest-only. The transform UI has build and data tests but still needs browser interaction QA on the target device.
+Play mode uses world-axis bounding-box collisions for all solid shapes, including rotated objects; sloped surfaces are approximations, not true ramp physics. Saved custom script effects remain client-local, including in multiplayer. The transform UI has build and data tests but still needs browser interaction QA on the target device.
+
+## Multiplayer, interactions, audio and scripts (0.3)
+
+Published play links join a private Supabase Realtime channel scoped by game slug and room. Anyone who can play a public game can join its channel. Presence tracks guests, Broadcast sends movement at 10Hz, and remote capsule avatars interpolate between updates. `?room=friends` creates a separate room; share the full URL to join the same one. Maximum 30 remote avatars rendered per client. Rooms are ephemeral, guest labels are not verified identities, and movement remains client-reported. No authoritative collision, anti-cheat, shared inventory, economy, global collectible state, or shared scripted world state is provided. Local playtests do not join public rooms.
+
+Select an object and use Properties → Audio to paste an HTTPS audio URL or upload an MP3 (sign-in required, maximum 10MB). Uploaded recordings are public assets; the UI asks before upload. Playback supports volume, looping, positional audio, and distance attenuation. Approach an interactive object and press E or tap the onscreen prompt. Audio begins in response to interaction, not autoplay. Stop resets local runtime effects.
+
+Interaction components connect a source object to a target with `toggleAudio`, `toggleVisibility`, `toggleLight`, or `move`. Move uses an offset and toggles back to its original position. Point lights can be attached in Properties; they are currently rendered during playtests. Interactions and scripts are local to each player's session, not broadcast world mutations.
+
+Scripts entered under Script are saved in the project and start on Play, including published games. The isolated worker API provides `api.color(id,hex)`, `api.position(id,x,y,z)`, `api.visible(id,bool)`, `api.audio(id)`, `api.onUpdate(fn)` (dt argument), and `api.onInteract(id,fn)`. No direct DOM, networking, or engine-object access. The sandbox limits forwarded commands and stops stalled workers after two seconds. Scripts are not executed on the Node server. Creator scripts must never be used to authorize transactions.
+
+`supabase/realtime-assets.sql` records the applied room policies and audio bucket setup. Creator asset folders restrict upload access to the signed-in owner. Audio uploads are immutable through this UI. Asset cleanup, per-user storage quotas, and private asset sharing are future work.
+
+Verification includes two live private-channel clients exchanging movement, Presence joins/leaves, data/component validation, and interaction distance/door toggling. Browser audio playback, visual multiplayer interpolation and script event handling still require device QA.

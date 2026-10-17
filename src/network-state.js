@@ -1,0 +1,2 @@
+export function validMovement(p){return !!p&&typeof p.id==='string'&&/^[a-f0-9-]{36}$/.test(p.id)&&Array.isArray(p.position)&&p.position.length===3&&p.position.every(n=>Number.isFinite(n)&&Math.abs(n)<=10000)&&Number.isFinite(p.yaw)&&Math.abs(p.yaw)<1000&&Number.isSafeInteger(p.seq)&&p.seq>=0;}
+export function roomName(slug,room='lobby'){if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)||slug.length>100||!/^[a-zA-Z0-9_-]{1,32}$/.test(room))throw Error('Invalid multiplayer room.');return `asnb:game:${slug}:${room}`;}
