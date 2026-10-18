@@ -1,0 +1,1 @@
+export function vehicleSettings(v){if(v==null)return undefined;if(typeof v!=='object'||!Number.isFinite(v.maxSpeed)||v.maxSpeed<5||v.maxSpeed>40||!Number.isFinite(v.engineForce)||v.engineForce<200||v.engineForce>5000||!Number.isFinite(v.mass)||v.mass<100||v.mass>2000)throw Error('Invalid vehicle settings.');return {maxSpeed:v.maxSpeed,engineForce:v.engineForce,mass:v.mass};}
