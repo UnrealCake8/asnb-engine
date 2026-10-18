@@ -127,3 +127,18 @@ The Node process uses `ASNB_DATA_DIR` (default `.asnb-data`) for signed device p
 Automated coverage includes the catalogue-to-rules-to-HUD-to-terrain-to-recovery DOM workflow, each prefab, terrain/CSG geometry, declarative rules, NPC patrols, GLB clip playback, device profile restart/forgery checks, physics and real two-client room/vehicle tests. Cloud role tests cover owner/editor/viewer/outsider access, revision conflicts, protected sharing and forged history rejection. Browser rendering, camera feel, touch controls and audio still require device QA.
 
 The foundation release also passed a live production HTTP generation smoke test after adding hex-colour and transform bounds to the AI output schema. The generated scene passed the same runtime validator used for imported projects.
+
+### Per-item client JavaScript
+Select an item and open **Client script** in the inspector. Edit JavaScript, click **Save item script**, then Play. Scripts can be enabled, disabled or removed, and survive project export, cloud saves and publication. AI edits preserve scripts on surviving object IDs.
+
+```js
+self.color('#aa77ff');
+self.onInteract(() => self.audio());
+api.onUpdate(dt => {
+  // Update a client effect here. dt is seconds.
+});
+```
+
+`self` exposes `id`, `name`, `startPosition`, `color(hex)`, `position(x,y,z)`, `visible(bool)`, `audio()` and `onInteract(fn)`. The project API also offers `color(id,hex)`, `position(id,x,y,z)`, `visible(id,bool)`, `audio(id)`, `log(message)`, `onUpdate(fn)` and `onInteract(id,fn)`. Interaction events require the item's interaction component. Scripts are limited to 10,000 characters per item. Stop and Play to restart after editing.
+
+These scripts run together in the existing sandboxed client worker, with a stall watchdog and no network access. They are client effects, not authoritative server JavaScript: published clients cannot move or hide physics objects through this API. Use server rules for shared state. A stalled item can stop the shared worker; independent script isolation, autocomplete and arbitrary server scripting are not implemented yet.
