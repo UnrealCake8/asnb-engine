@@ -1,0 +1,2 @@
+export const chatPhrases=['Hello!','Welcome!','Good game!','Nice shot!','Well played!','Thank you!','You are welcome!','Sorry!','Yes','No','Ready?','I am ready!','Wait a moment!','Follow me!','This way!','I need help!','Let us work together!','Meet at the spawn!','Watch out!','Try again!','See you later!'];
+export function filterChat(text){if(typeof text!=='string'||text.length>300)return null;const value=text.normalize('NFKC').trim();return chatPhrases.find(p=>p.toLowerCase()===value.toLowerCase())||null;}

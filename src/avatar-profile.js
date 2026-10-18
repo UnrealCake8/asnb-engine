@@ -1,0 +1,3 @@
+export const defaultAvatar={shirt:'#4f88ed',pants:'#25334e',skin:'#f0d4bd',hair:'#302522',style:'short',hat:'none'};
+export function avatarProfile(value={}){const result={...defaultAvatar};for(const k of ['shirt','pants','skin','hair'])if(typeof value?.[k]==='string'&&/^#[0-9a-f]{6}$/i.test(value[k]))result[k]=value[k];if(['short','none','long'].includes(value?.style))result.style=value.style;if(['none','cap'].includes(value?.hat))result.hat=value.hat;return result;}
+export function loadAvatar(){try{return avatarProfile(JSON.parse(localStorage.getItem('asnb-avatar')||'{}'));}catch{return avatarProfile();}}
