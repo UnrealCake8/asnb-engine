@@ -1,0 +1,2 @@
+// Initial project geometry is still loaded in full. This filters recurring state updates.
+export function interestedState(state,playerId,radius=180){const player=state.players.find(p=>p.id===playerId);if(!player)return state;const objects=[],dormant=[];for(const o of state.objects){if(!o.visible||Math.hypot(o.position[0]-player.position[0],o.position[1]-player.position[1],o.position[2]-player.position[2])<=radius)objects.push(o);else dormant.push(o.id);}return {...state,objects,dormant};}

@@ -1,0 +1,2 @@
+// Trusted, bundled editor tools share this small API. No downloaded plugin code is executed.
+export function extensionRegistry(api){const tools=new Map();return {register({id,name,run}){if(!/^[a-z0-9-]{1,40}$/.test(id)||tools.has(id)||typeof run!=='function')throw Error('Invalid editor extension.');tools.set(id,{id,name,run});},list(){return [...tools.values()].map(({id,name})=>({id,name}));},run(id){const tool=tools.get(id);if(!tool)throw Error('Unknown tool.');return tool.run(Object.freeze(api));}};}

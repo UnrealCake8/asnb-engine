@@ -1,0 +1,17 @@
+begin;
+insert into auth.users(id,email) values ('e7e00000-0000-4000-8000-000000000001','asnb-foundation-owner@example.invalid'),('e7e00000-0000-4000-8000-000000000002','asnb-foundation-editor@example.invalid'),('e7e00000-0000-4000-8000-000000000003','asnb-foundation-viewer@example.invalid');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','e7e00000-0000-4000-8000-000000000001',true);
+insert into public.asnb_projects(id,title,project) values('e7e00000-0000-4000-8000-000000000010','Foundation test','{"version":1,"name":"Foundation test","description":"","sky":"#aabbcc","spawn":[0,1,0],"objects":[]}');
+do $$ begin if (select count(*) from public.asnb_project_versions where project_id='e7e00000-0000-4000-8000-000000000010')<>1 then raise exception 'Initial history missing';end if;end $$;
+update public.asnb_projects set title='Owner revision',editors=array['e7e00000-0000-4000-8000-000000000002'::uuid],viewers=array['e7e00000-0000-4000-8000-000000000003'::uuid] where id='e7e00000-0000-4000-8000-000000000010' and revision=1;
+do $$ begin if (select revision from public.asnb_projects where id='e7e00000-0000-4000-8000-000000000010')<>2 then raise exception 'Revision not incremented';end if;update public.asnb_projects set title='stale' where id='e7e00000-0000-4000-8000-000000000010' and revision=1;if found then raise exception 'Stale save accepted';end if;end $$;
+select set_config('request.jwt.claim.sub','e7e00000-0000-4000-8000-000000000002',true);
+update public.asnb_projects set title='Editor revision' where id='e7e00000-0000-4000-8000-000000000010' and revision=2;
+do $$ begin if (select revision from public.asnb_projects where id='e7e00000-0000-4000-8000-000000000010')<>3 then raise exception 'Editor save failed';end if;begin update public.asnb_projects set editors='{}' where id='e7e00000-0000-4000-8000-000000000010';raise exception 'Editor changed permissions';exception when raise_exception then if sqlerrm='Editor changed permissions' then raise;end if;end;begin insert into public.asnb_project_versions(project_id,revision,project,author_id) values('e7e00000-0000-4000-8000-000000000010',999,'{}','e7e00000-0000-4000-8000-000000000002');raise exception 'Forged history accepted';exception when insufficient_privilege then null;end;end $$;
+select set_config('request.jwt.claim.sub','e7e00000-0000-4000-8000-000000000003',true);
+do $$ begin if (select count(*) from public.asnb_projects where id='e7e00000-0000-4000-8000-000000000010')<>1 then raise exception 'Viewer cannot read';end if;update public.asnb_projects set title='Viewer overwrite' where id='e7e00000-0000-4000-8000-000000000010';if found then raise exception 'Viewer wrote draft';end if;end $$;
+select set_config('request.jwt.claim.sub','e7e00000-0000-4000-8000-000000000099',true);
+do $$ begin if (select count(*) from public.asnb_projects where id='e7e00000-0000-4000-8000-000000000010')<>0 then raise exception 'Outsider read draft';end if;end $$;
+select 'PASS: owner, editor, viewer, outsider, version trigger and stale-save checks' as result;
+rollback;

@@ -85,3 +85,45 @@ Choose **Templates → Willowbrook town**. The benchmark includes connected road
 Movement/engine effects are synthesised locally with no music or external assets. Effects can be muted using the header button. Browser user-gesture audio rules apply. This remains an initial small-town benchmark, not photorealism: no interiors, traffic AI, pedestrians, automotive drivetrain or network prediction/rollback. Town, vehicle ownership, driving/braking/exiting, stale input, kerb stepping and two-client shared vehicle snapshots have automated coverage. Browser/device camera, audio and visual playtesting remains pending.
 
 Vehicle components require a root solid box without authored children; decorative car parts are created by the renderer. The schema carries bounded mass, maxSpeed and engineForce values. Vehicles can be created by AI using the same supported component. Texture/material/environment settings survive save/export/publish.
+
+## Creator foundations release
+
+The primary editor now has **Build / Gameplay / Look / Test / Project** workspaces. Start with **Build → Templates → Creator Foundations Lab**, or use **Project → New baseplate** and insert a floor from the catalogue. No JSON is needed for the basic authoring flow.
+
+| Area | Usable foundation | Current boundary |
+| --- | --- | --- |
+| Editor | Catalogue, move/rotate/scale, world/local transform space, root-object alignment, lock/hide, tags, collapsible Explorer, drag reparenting | No arbitrary docking/layout system |
+| Geometry | Static, root, unrotated box subtraction | No general mesh CSG |
+| Terrain | Seeded stepped terrain tiles, raising/lowering selected tiles, grass surface | No smooth sculpting or heightmap import |
+| Assets | Searchable built-in catalogue, device-local reusable model shelf, existing public GLB/audio imports | No public asset marketplace or package update tracking |
+| Appearance | Existing PBR-style surface controls, day/sunset/night presets, simple particle emitter | No advanced post-processing editor |
+| Characters | Rigged procedural avatar, editable NPC speed and straight-segment waypoints | No obstacle pathfinding or full character authoring |
+| Animation | GLB embedded clips, clip name, speed and loop settings | No timeline, animation graph, or IK authoring |
+| Physics | Distance, spring, hinge and rigid-lock links; spring demonstration prefab | Links are authored at object centres; no pivot/axis editor yet |
+| Gameplay | Interact/touch/timer rules with move, visibility, light, audio, score, respawn, finish and points-purchase actions | A bounded declarative rule system, not arbitrary server JavaScript |
+| UI | Labels, score, health, inventory totals and interaction buttons at screen percentages | Form-based authoring, not a full visual layout editor |
+| Audio | Existing upload, spatial playback, loop and volume controls plus speaker prefab | No mixer graph or voice chat |
+| Multiplayer | Existing authoritative rooms; rules, physics links, NPCs, inventory and vehicles share simulation state | No matchmaking; recurring object updates use distance-based interest, while initial geometry loads in full |
+| Persistence | Device profile token restores score, checkpoint and inventory from local server storage | Not linked to creator accounts; world changes still reset with rooms/server |
+| Testing | Scene warnings, FPS/draw calls/triangles, local two-player test bot, phone/tablet viewport previews and movement latency simulation | DOM tests cover tools; graphics/device gameplay QA still pending |
+| Diagnostics | Captured runtime/script messages, basic local editor action count; api.log() in local script sandbox | No stepping debugger or production analytics service |
+| Projects | Automatic/manual local recovery, cloud drafts, last 20 cloud revisions and optimistic save conflict checks | Not simultaneous live scene merging |
+| Sharing | Owner/editor/viewer access by account UUID; owner-only permission changes | No email invitations or live cursors |
+| AI/extensions | Generation schema supports new scene components; trusted bundled extension registry | No downloaded third-party plugin code or public MCP endpoint |
+| Platform | Published gallery/links, existing safe chat/reporting, local point purchases/inventory, HUD translations | No real-money payments, asset moderation service or automatic translation |
+
+### Rules
+Open **Gameplay → Rules**. Choose a source object, event, target and action. Interact rules attach an E prompt; touch rules compare player overlap; timers repeat with a minimum one-second cooldown. `once` is per player for player-triggered rules and per world for timers. Timer rules have no player and cannot award points, purchase inventory, respawn or finish a player. Purchase actions spend the player's score and add the target object ID to inventory; they do not transfer real money. Rules are evaluated by the simulation in local tests and by Node in published rooms. Client packets cannot submit arbitrary actions.
+
+### Cloud drafts
+Use the existing account button to sign in, then **Project → Cloud projects**. Save a new draft or open one you can access. Save updates only the revision you opened, so stale edits are rejected. Check for changes/reopen to load a newer draft; save as new to keep your conflicting work. Version restore changes your local scene; save again to record a new cloud revision. Share by the collaborator's account UUID, which they can obtain with **Show my account ID**. No invitation messages are sent. Viewers can open drafts but cannot save them; editors cannot change access. Cloud draft sharing does not change published-game visibility.
+
+The deployed schema is recorded in `supabase/projects.sql`; role/trigger tests are in `supabase/tests/asnb_projects_rls.sql`. These tests were run against the selected `asnb.engine` project and rolled back all fixture users/data.
+
+### Device player data
+The Node process uses `ASNB_DATA_DIR` (default `.asnb-data`) for signed device profile tokens and saved data. The browser stores its game-specific token locally and presents it on reconnect. The server periodically saves the current score/checkpoint/inventory and saves again on disconnect. Keep this directory persistent and backed up. Clearing browser storage loses access to that device profile; deleting the server data directory removes progress. Tokens are bearer credentials for a device profile, not verified Roblox-like accounts. Multiple tabs using one token can overwrite the same profile. Shared collectibles and object changes are room state, separate from individual saved progress. No chat transcripts are written into this store.
+
+### Validation
+Automated coverage includes the catalogue-to-rules-to-HUD-to-terrain-to-recovery DOM workflow, each prefab, terrain/CSG geometry, declarative rules, NPC patrols, GLB clip playback, device profile restart/forgery checks, physics and real two-client room/vehicle tests. Cloud role tests cover owner/editor/viewer/outsider access, revision conflicts, protected sharing and forged history rejection. Browser rendering, camera feel, touch controls and audio still require device QA.
+
+The foundation release also passed a live production HTTP generation smoke test after adding hex-colour and transform bounds to the AI output schema. The generated scene passed the same runtime validator used for imported projects.
